@@ -49,6 +49,8 @@ Motivnavi OS は、家で使われなくなった中古の2 in 1タブレット�
 │       └── splash.png                    # ブートメニューの背景
 └── scripts/
     ├── generate-menus.sh       # GRUB/ISOLINUX メニュー生成（表示名を Motivnavi OS に固定）
+    ├── bootstrap-liveroot.sh   # ライブ環境の組み立て（/motivnavi を含めるよう変更済み）
+    ├── motivnavi-install.sh    # インストーラー起動ラッパー（sudo -E でパスワードなし起動）
     └── ...
 ```
 
@@ -78,6 +80,8 @@ Motivnavi OS は、家で使われなくなった中古の2 in 1タブレット�
 ## 注意事項
 
 - `componentName: eggs`、アイコン名 `penguins-eggs`、polkit のアクションID など、eggs 本体が参照する内部名は変更しないでください。変更するとインストーラーが起動しなくなります。
+- インストーラーは `pkexec` ではなく `scripts/motivnavi-install.sh`（`sudo -E eggs sysinstall calamares`）で起動します。`pkexec` は画面の環境変数を消すため、Calamares が起動できません。
+- eggs はルート直下の標準ディレクトリ（bin, sbin, lib, lib64, opt, root, srv, usr, var, etc, boot）しかライブ環境に含めません。`/motivnavi` は `scripts/bootstrap-liveroot.sh` に追加して含めています。
 - `install-system.desktop.tmpl` の `Version=1.0` はデスクトップエントリ仕様のバージョンで、OSのバージョンではありません。
 - ブートメニュー（GRUB/ISOLINUX）は日本語表示に対応していないため、英語表記です。
 - スライドショーは `Noto Sans CJK JP` フォントを指定しています。未インストールの場合は別の日本語フォントで表示されます。

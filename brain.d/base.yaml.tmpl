@@ -242,15 +242,28 @@ remaster:
         DEST={{ .LiveRoot }}/usr/share/applications/install-system.desktop
         [ -f "$ACTIVE_SRC" ] && SRC=$ACTIVE_SRC
         mkdir -p "$(dirname "$DEST")"
+        # Motivnavi OS: pkexec は DISPLAY/WAYLAND_DISPLAY を消して Calamares が
+        # 画面に接続できないため、sudo -E で起動するラッパーを経由する
+        # （live ユーザーは conf-live-sudoers で NOPASSWD のためパスワード不要）
+        mkdir -p {{ .LiveRoot }}/usr/local/bin
+        cp /etc/penguins-eggs.d/scripts/motivnavi-install.sh {{ .LiveRoot }}/usr/local/bin/motivnavi-install
+        chmod 755 {{ .LiveRoot }}/usr/local/bin/motivnavi-install
         if [ -f "$SRC" ]; then
           sed \
             -e 's/@@TERMINAL@@/{{ if .HasCalamares }}false{{ else }}true{{ end }}/' \
-            -e 's|^Exec=.*$|Exec=pkexec eggs sysinstall|' \
+            -e 's|^Exec=.*$|Exec=/usr/local/bin/motivnavi-install|' \
             "$SRC" > "$DEST"
           chmod 755 "$DEST"
         else
           echo "Missing default installer launcher: $SRC" >&2
           exit 1
+        fi
+        # Motivnavi OS: Calamares パッケージ標準のメニュー項目を隠し、
+        # インストーラーの入口を install-system.desktop に一本化する
+        if [ -f {{ .LiveRoot }}/usr/share/applications/calamares.desktop ]; then
+          mkdir -p {{ .LiveRoot }}/usr/local/share/applications
+          printf '[Desktop Entry]\nType=Application\nName=Calamares\nNoDisplay=true\nHidden=true\n' \
+            > {{ .LiveRoot }}/usr/local/share/applications/calamares.desktop
         fi
 
 # ----------------------------------------------------------------------------

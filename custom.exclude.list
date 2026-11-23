@@ -30,3 +30,13 @@ snap/
 # Force Include
 !motivnavi
 !motivnavi/**
+
+# ==========================================
+# MOTIVNAVI: ビルドの途中生成物（約2.4GB）
+# アプリを build/ や target/ から直接起動していないことを
+# 確認してから、行頭の '#' を外して有効にしてください。
+# ==========================================
+#motivnavi/fcitx5-osk/build/
+#motivnavi/mediablue/src-tauri/target/
+#opt/motivnavi/fcitx5-osk/build/
+#opt/motivnavi/mediablue/src-tauri/target/

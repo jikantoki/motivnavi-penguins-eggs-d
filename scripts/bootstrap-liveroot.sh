@@ -38,7 +38,9 @@ if [ -n "$PARENT_ID" ]; then
 fi
 
 # 3. BIND MOUNTS E SYMLINK (USRMERGE)
-for e in bin sbin lib lib64 opt root srv; do
+# Motivnavi OS: ルート直下の /motivnavi もライブ環境に含める
+# （実体ならbindマウント、/opt/motivnavi へのシンボリックリンクならリンクを再現）
+for e in bin sbin lib lib64 opt root srv motivnavi; do
     SRC="/$e"
     DST="$LIVEROOT/$e"
     if [ -L "$SRC" ]; then
