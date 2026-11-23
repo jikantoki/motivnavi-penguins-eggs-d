@@ -26,3 +26,7 @@ var/lib/machines/
 var/lib/snapd/
 var/snap/
 snap/
+
+# Force Include
+!motivnavi
+!motivnavi/**
