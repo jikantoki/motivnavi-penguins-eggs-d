@@ -1,0 +1,182 @@
+# ==============================================================================
+# 🌀 MODULO DEBIAN / UBUNTU - INSTALL (Principle of Transparency)
+# ==============================================================================
+
+{{ define "install_distro_initramfs" }}
+mkdir -p /etc/initramfs-tools/conf.d
+SWAP_UUID=$(awk '$3 == "swap" && $1 ~ /^UUID=/ {sub(/^UUID=/, "", $1); print $1}' /etc/fstab | head -n 1)
+if [ -n "$SWAP_UUID" ]; then
+    echo "RESUME=UUID=$SWAP_UUID" > /etc/initramfs-tools/conf.d/resume
+else
+    echo "RESUME=none" > /etc/initramfs-tools/conf.d/resume
+fi
+if [ -f /etc/initramfs-tools/initramfs.conf ]; then
+    sed -i 's/^RESUME=.*/RESUME=none/' /etc/initramfs-tools/initramfs.conf
+fi
+if [ -x /usr/sbin/update-initramfs.orig.initramfs-tools ]; then
+    /usr/sbin/update-initramfs.orig.initramfs-tools -u -k all
+elif command -v update-initramfs >/dev/null 2>&1; then
+    touch /.live-build
+    update-initramfs -u -k all
+    rm -f /.live-build
+fi
+{{ end }}
+
+{{ define "install_distro_bootloader" }}
+# Coexist choices arrive at runtime: this template is rendered before the TUI.
+if [ "${KRILL_INSTALL_MODE:-}" = coexist ]; then
+    [ -d /sys/firmware/efi ] || { echo "[FATAL ERROR] Coexist GRUB requires UEFI" >&2; exit 1; }
+    EFI_ID=${KRILL_EFI_BOOTLOADER_ID:-}
+    case "$EFI_ID" in
+        ''|boot|kubuntu|devuan|[!a-z0-9]*|*[!a-z0-9]|*[!a-z0-9-]*)
+            echo "[FATAL ERROR] Unsafe or reserved Coexist EFI bootloader ID" >&2; exit 1 ;;
+    esac
+    [ "${#EFI_ID}" -le 16 ] || { echo "[FATAL ERROR] EFI bootloader ID too long" >&2; exit 1; }
+
+    # Recheck immediately before bootloader operations, including case variants.
+    # The selected ID is authoritative: replace only that exact namespace.
+    efi_destination=""
+    for efi_dir in /boot/efi/[Ee][Ff][Ii]; do
+        [ -e "$efi_dir" ] || [ -L "$efi_dir" ] || continue
+        [ -d "$efi_dir" ] && [ ! -L "$efi_dir" ] || exit 1
+        for destination in "$efi_dir"/*; do
+            [ -e "$destination" ] || [ -L "$destination" ] || continue
+            existing_id=$(basename "$destination" | LC_ALL=C tr 'A-Z' 'a-z')
+            if [ "$existing_id" = "$EFI_ID" ]; then
+                [ -d "$destination" ] && [ ! -L "$destination" ] || {
+                    echo "[FATAL ERROR] EFI destination is not a directory: $destination" >&2
+                    exit 1
+                }
+                [ -z "$efi_destination" ] || {
+                    echo "[FATAL ERROR] Multiple EFI destinations match $EFI_ID" >&2
+                    exit 1
+                }
+                efi_destination="$destination"
+            fi
+        done
+    done
+    if [ -n "$efi_destination" ]; then
+        rm -rf -- "$efi_destination" || exit 1
+    fi
+
+    # Standard Debian configuration, retained independently of penguins-eggs.
+    mkdir -p /etc/default/grub.d
+    touch /etc/default/grub
+    printf "GRUB_DISTRIBUTOR='%s'\n" "$EFI_ID" > /etc/default/grub.d/zz-coexist-efi.cfg
+    # Fail if an inherited later drop-in overrides the persistent identity.
+    configured_id=$(
+        . /etc/default/grub >/dev/null
+        for config in /etc/default/grub.d/*.cfg; do
+            [ ! -e "$config" ] || . "$config" >/dev/null
+        done
+        printf '%s' "$GRUB_DISTRIBUTOR"
+    )
+    [ "$configured_id" = "$EFI_ID" ] || { echo "[FATAL ERROR] GRUB_DISTRIBUTOR overridden by existing configuration" >&2; exit 1; }
+
+    # Both GRUB and shim package maintenance consult this shared debconf key.
+    # grub-install itself writes the removable path only when explicitly asked.
+    printf '%s\n' 'grub2-common grub2/force_efi_extra_removable boolean false' | debconf-set-selections
+fi
+
+echo "-> Preserving original GRUB configuration & setting OS prober..."
+
+# Remove obsolete OEM installer hooks if present (e.g. openKylin multiboot & grub-install wrapper)
+rm -f /etc/grub.d/42_openkylin_multiboot 2>/dev/null || true
+rm -rf /etc/openkylin-installer 2>/dev/null || true
+if [ -f /usr/sbin/grub-install.openkylin-original ]; then
+    rm -f /usr/sbin/grub-install
+    dpkg-divert --local --rename --remove /usr/sbin/grub-install >/dev/null 2>&1 || mv -f /usr/sbin/grub-install.openkylin-original /usr/sbin/grub-install
+fi
+
+if [ -f /etc/default/grub ]; then
+    if grep -q "^GRUB_DISABLE_OS_PROBER=" /etc/default/grub; then
+        sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
+    else
+        echo "GRUB_DISABLE_OS_PROBER=false" >> /etc/default/grub
+    fi
+
+    # Avoid 30-second delay if recordfail is triggered
+    if grep -q "^GRUB_RECORDFAIL_TIMEOUT=" /etc/default/grub; then
+        sed -i 's/^GRUB_RECORDFAIL_TIMEOUT=.*/GRUB_RECORDFAIL_TIMEOUT=0/' /etc/default/grub
+    else
+        echo "GRUB_RECORDFAIL_TIMEOUT=0" >> /etc/default/grub
+    fi
+fi
+
+if [ -d /sys/firmware/efi ]; then
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64)
+            GRUB_TARGET="x86_64-efi"
+            GRUB_BIN="grubx64.efi"
+            BOOT_BIN="BOOTX64.EFI"
+            ;;
+        aarch64|arm64)
+            GRUB_TARGET="arm64-efi"
+            GRUB_BIN="grubaa64.efi"
+            BOOT_BIN="BOOTAA64.EFI"
+            ;;
+        riscv64)
+            GRUB_TARGET="riscv64-efi"
+            GRUB_BIN="grubriscv64.efi"
+            BOOT_BIN="BOOTRISCV64.EFI"
+            ;;
+        i386|i686)
+            GRUB_TARGET="i386-efi"
+            GRUB_BIN="grubia32.efi"
+            BOOT_BIN="BOOTIA32.EFI"
+            ;;
+        *)
+            GRUB_TARGET="x86_64-efi"
+            GRUB_BIN="grubx64.efi"
+            BOOT_BIN="BOOTX64.EFI"
+            ;;
+    esac
+
+    if [ "${KRILL_INSTALL_MODE:-}" = coexist ]; then
+        # Keep normal NVRAM registration. No removable/fallback installation.
+        grub-install --target="$GRUB_TARGET" --efi-directory=/boot/efi --bootloader-id="$EFI_ID" --recheck || exit 1
+    else
+        if ! grub-install --target="$GRUB_TARGET" --efi-directory=/boot/efi --bootloader-id={{ .DistroID }} --recheck; then
+            [ -f "/boot/efi/EFI/{{ .DistroID }}/$GRUB_BIN" ] || { echo "[FATAL ERROR] grub-install failed and no EFI binary was written"; exit 1; }
+        fi
+
+        # Removable fallback (EFI/BOOT). Signed GRUB looks for grub.cfg next to
+        # itself, so the fallback directory needs the same set of files that
+        # grub-install --force-extra-removable would write: shim (as BOOT*.EFI),
+        # grub, MokManager, fallback and the grub.cfg stub.
+        ESP_ID_DIR="/boot/efi/EFI/{{ .DistroID }}"
+        ESP_BOOT_DIR="/boot/efi/EFI/BOOT"
+        SHIM_BIN="shim${GRUB_BIN#grub}"
+        MM_BIN="mm${GRUB_BIN#grub}"
+        FB_BIN="fb${GRUB_BIN#grub}"
+        mkdir -p "$ESP_BOOT_DIR"
+        if [ -f "$ESP_ID_DIR/$SHIM_BIN" ]; then
+            cp -f "$ESP_ID_DIR/$SHIM_BIN" "$ESP_BOOT_DIR/$BOOT_BIN"
+            [ -f "$ESP_ID_DIR/$GRUB_BIN" ] && cp -f "$ESP_ID_DIR/$GRUB_BIN" "$ESP_BOOT_DIR/$GRUB_BIN"
+            [ -f "$ESP_ID_DIR/$MM_BIN" ] && cp -f "$ESP_ID_DIR/$MM_BIN" "$ESP_BOOT_DIR/$MM_BIN"
+            [ -f "$ESP_ID_DIR/$FB_BIN" ] && cp -f "$ESP_ID_DIR/$FB_BIN" "$ESP_BOOT_DIR/$FB_BIN"
+        else
+            [ -f "$ESP_ID_DIR/$GRUB_BIN" ] && cp -f "$ESP_ID_DIR/$GRUB_BIN" "$ESP_BOOT_DIR/$BOOT_BIN"
+        fi
+        [ -f "$ESP_ID_DIR/grub.cfg" ] && cp -f "$ESP_ID_DIR/grub.cfg" "$ESP_BOOT_DIR/grub.cfg"
+    fi
+    update-grub
+elif [ "$(uname -m)" = "riscv64" ]; then
+    echo "-> RISC-V platform detected: writing Spacemit K1 U-Boot bootloader..."
+    SPACEMIT_ASSETS="/usr/share/penguins-eggs/spacemit"
+    [ -d "$SPACEMIT_ASSETS" ] || SPACEMIT_ASSETS="/etc/penguins-eggs.d/spacemit"
+    TARGET_DISK=$(grub-probe -t disk / 2>/dev/null || mount | grep " / " | awk '{print $1}' | sed 's/p[0-9]*$//')
+    [ -z "$TARGET_DISK" ] && TARGET_DISK="/dev/nvme0n1"
+    if [ -b "$TARGET_DISK" ]; then
+        echo "Writing Spacemit K1 bootloader binaries to $TARGET_DISK..."
+        [ -f "$SPACEMIT_ASSETS/factory/FSBL.bin" ] && dd if="$SPACEMIT_ASSETS/factory/FSBL.bin" of="${TARGET_DISK}p1" conv=fsync status=none 2>/dev/null || true
+        [ -f "$SPACEMIT_ASSETS/fw_dynamic.itb" ] && dd if="$SPACEMIT_ASSETS/fw_dynamic.itb" of="${TARGET_DISK}p3" conv=fsync status=none 2>/dev/null || true
+        [ -f "$SPACEMIT_ASSETS/u-boot.itb" ] && dd if="$SPACEMIT_ASSETS/u-boot.itb" of="${TARGET_DISK}p4" conv=fsync status=none 2>/dev/null || true
+    fi
+else
+    TARGET_DISK="${KRILL_TARGET_DEVICE:-$(grub-probe -t disk / 2>/dev/null || echo "/dev/sda")}"
+    grub-install --target=i386-pc --recheck "$TARGET_DISK"
+    update-grub
+fi
+{{ end }}

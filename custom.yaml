@@ -1,0 +1,8 @@
+# custom.yaml - penguins-eggs configuration overrides
+remaster:
+  password: "evolution"
+  compression:
+    algorithm: "zstd"
+    level: 3
+  iso_prefix: "motivnavi-os-"
+  installer: "calamares"

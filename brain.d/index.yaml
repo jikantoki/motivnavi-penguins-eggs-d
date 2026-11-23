@@ -1,0 +1,50 @@
+# Mappatura: a quale directory o file corrisponde ogni ID o ID_LIKE
+distributions:
+  - id: "debian"
+    like: [
+      "abellha",
+      "devuan",
+      "kali",
+      "linuxmint",
+      "openkylin",
+      "pop",
+      "quirinux",
+      "ubuntu",
+      ]
+    dir: "debian"
+  
+  - id: "arch"
+    like: [
+      "archcraft",
+      "cachyos",
+      "endeavouros",
+      "garuda",
+      "rebornos",
+      ]
+    dir: "arch-family"
+
+  - id: "manjaro"
+    like: [
+      "bigcommunity", 
+      "biglinux",
+      ]
+    dir: "arch-family"
+
+  - id: "fedora"
+    like: [
+      "nobara",
+      ]
+    dir: "fedora"
+
+  - id: "opensuse"
+    like: [
+      "opensuse-slowroll",
+      "opensuse-tumbleweed", 
+      "suse", 
+      ]
+    dir: "opensuse"
+
+  - id: "alpine"
+    like: []
+    dir: "alpine"
+
