@@ -391,6 +391,7 @@ install:
     params:
       command: |
         rm -f /etc/sudoers.d/00-live
+        rm -f /etc/sudoers.d/live-nopasswd
         rm -f /etc/grub.d/42_openkylin_multiboot 2>/dev/null || true
         rm -rf /etc/openkylin-installer 2>/dev/null || true
 
