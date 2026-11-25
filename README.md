@@ -15,7 +15,7 @@
 Motivnavi OS は、家で使われなくなった中古の2 in 1タブレットを、車載カーナビとして再利用するための Linux 派生OSです。
 
 - Android Auto 対応（[Linux Auto](https://github.com/jikantoki/LinuxAuto)）
-- 日本語タッチキーボード標準搭載（[Fcitx5 Osk](https://github.com/fortime/fcitx5-osk)）
+- 日本語タッチキーボード標準搭載（[Fcitx5 Osk Ja](https://github.com/jikantoki/fcitx5-osk-ja)）
 - Bluetooth での音楽再生と通話（[Mediablue](https://github.com/jikantoki/mediablue)）
 - インターネットラジオ（[Castify](https://github.com/jikantoki/castify)）
 - 起動画面（[Motivnavi Plymouth](https://github.com/jikantoki/motivnavi-plymouth)）
@@ -67,13 +67,13 @@ Motivnavi OS は、家で使われなくなった中古の2 in 1タブレット�
 
 ## ブランディングの変更箇所
 
-| 対象 | ファイル | 内容 |
-|---|---|---|
-| OS名・URL・配色 | `branding.default/calamares/branding/branding.desc.tmpl` | 製品名、バージョン、各種リンク、サイドバーの色 |
-| スライドショー | `branding.default/calamares/branding/show.qml` | 文言・配色・フォント |
-| ロゴ・バナー | `branding.default/calamares/branding/*.png` | 画像を差し替え |
-| ブートメニュー | `scripts/generate-menus.sh`、`branding.default/livecd/` | 表示名・項目名・背景 |
-| インストーラーの起動アイコン | `branding.default/applications/`、`branding.default/artwork/` | 名前・説明・アイコン |
+| 対象                         | ファイル                                                      | 内容                                           |
+| ---------------------------- | ------------------------------------------------------------- | ---------------------------------------------- |
+| OS名・URL・配色              | `branding.default/calamares/branding/branding.desc.tmpl`      | 製品名、バージョン、各種リンク、サイドバーの色 |
+| スライドショー               | `branding.default/calamares/branding/show.qml`                | 文言・配色・フォント                           |
+| ロゴ・バナー                 | `branding.default/calamares/branding/*.png`                   | 画像を差し替え                                 |
+| ブートメニュー               | `scripts/generate-menus.sh`、`branding.default/livecd/`       | 表示名・項目名・背景                           |
+| インストーラーの起動アイコン | `branding.default/applications/`、`branding.default/artwork/` | 名前・説明・アイコン                           |
 
 バージョン番号（1.0）は、Calamares で必須の `version` と `shortVersion` にのみ記載しています。
 
